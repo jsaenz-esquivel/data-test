@@ -1,33 +1,30 @@
-"""
-Custom exceptions - easier to debug than catching generic Exception everywhere.
-"""
+"""Custom exceptions for the ETL engine."""
 
-
-class ETLException(Exception):
-    """Base class for ETL errors."""
+class ETLError(Exception):
+    """Base exception for ETL errors."""
     pass
 
 
-class MetadataValidationError(ETLException):
-    """When metadata JSON is malformed or missing required fields."""
+class MetadataError(ETLError):
+    """Raised when metadata JSON is invalid."""
     pass
 
 
-class SourceLoadError(ETLException):
-    """Can't read input files (missing, wrong format, etc)."""
+class SourceLoadError(ETLError):
+    """Raised when source data can't be loaded."""
     pass
 
 
-class TransformationError(ETLException):
-    """Something went wrong during data transformation."""
+class ValidationError(ETLError):
+    """Raised during data validation."""
     pass
 
 
-class SinkWriteError(ETLException):
-    """Can't write output files (permissions, disk space, etc)."""
+class TransformationError(ETLError):
+    """Raised when a transformation fails."""
     pass
 
 
-class ValidationRuleNotFound(ETLException):
-    """Tried to use a validation rule that doesn't exist."""
+class SinkWriteError(ETLError):
+    """Raised when writing output fails."""
     pass

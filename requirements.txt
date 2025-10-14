@@ -1,9 +1,1 @@
-# Core dependencies
 pydantic==2.9.2          # Data validation and modeling
-python-dateutil==2.9.0   # Date parsing utilities
-
-# Development dependencies
-pytest==8.3.3            # Testing framework
-black==24.8.0            # Code formatter
-mypy==1.11.2             # Static type checker
-ruff==0.6.9              # Fast linter
