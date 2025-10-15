@@ -15,7 +15,60 @@ __pycache__/
 logs/
 *.log
 
-# Test files
+# Test files# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Airflow
+airflow.db
+airflow.cfg
+logs/
+airflow-webserver.pid
+standalone_admin_password.txt
+
+# Data files (don't commit actual data)
+data/input/**/*.json
+data/output/**/*.json
+!data/input/events/person/.gitkeep
+!data/output/events/person/.gitkeep
+!data/output/discards/person/.gitkeep
+
+# Environment variables
+.env
+.env.local
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
 test_*.py
 pydantic_tutorial.py
 EOF
