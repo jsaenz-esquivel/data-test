@@ -1,31 +1,31 @@
-x-airflow-common: &airflow-common
+version: '3.8'
+
+x-airflow-common:
+  &airflow-common
   image: apache/airflow:2.10.3-python3.12
-  environment: &airflow-common-env
-    # Core Airflow configuration
+  environment:
+    &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
     AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
     AIRFLOW__CORE__FERNET_KEY: ''
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
-    PYTHONPATH: /opt/airflow/dags:/opt/airflow/etl_engine
-    AIRFLOW__CORE__DEFAULT_TIMEZONE: Europe/Madrid
-
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
   volumes:
-    # Mount project directories (enables hot-reload)
-    - ./dags:/opt/airflow/dags
-    - ./logs:/opt/airflow/logs
-    - ./etl_engine:/opt/airflow/etl_engine
-    - ./data:/opt/airflow/data
-    - ./config:/opt/airflow/config
-
+    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+    - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/dags/config
+    - ${AIRFLOW_PROJ_DIR:-.}/etl_engine:/opt/airflow/etl_engine
+    - ${AIRFLOW_PROJ_DIR:-.}/data:/data
   user: "${AIRFLOW_UID:-50000}:0"
-  depends_on: &airflow-common-depends-on
+  depends_on:
+    &airflow-common-depends-on
     postgres:
       condition: service_healthy
 
 services:
-  # PostgreSQL Database for Airflow metadata
   postgres:
     image: postgres:15
     environment:
@@ -34,6 +34,8 @@ services:
       POSTGRES_DB: airflow
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 10s
@@ -41,12 +43,11 @@ services:
       start_period: 5s
     restart: always
 
-  # Airflow Webserver (UI)
   airflow-webserver:
     <<: *airflow-common
     command: webserver
     ports:
-      - "8080:8080"
+      - "8090:8080"
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
@@ -59,7 +60,6 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  # Airflow Scheduler (executes DAGs)
   airflow-scheduler:
     <<: *airflow-common
     command: scheduler
@@ -75,35 +75,29 @@ services:
       airflow-init:
         condition: service_completed_successfully
 
-  # Airflow Initialization (DB migrations + admin user creation)
   airflow-init:
     <<: *airflow-common
     entrypoint: /bin/bash
     command:
       - -c
       - |
-        # Initialize Airflow database
-        airflow db init
-
-        # Create admin user (as per PDF requirements)
-        airflow users create \
-          --username admin \
-          --firstname Admin \
-          --lastname User \
-          --role Admin \
-          --email admin@sdggroup.com \
-          --password admin
-
-        echo "Airflow initialized successfully!"
+        if [[ -z "${AIRFLOW_UID}" ]]; then
+          echo "AIRFLOW_UID not set, using default 50000"
+          export AIRFLOW_UID=50000
+        fi
+        mkdir -p /opt/airflow/logs /opt/airflow/dags /opt/airflow/plugins
+        chown -R "${AIRFLOW_UID}:0" /opt/airflow/{logs,dags,plugins}
+        exec /entrypoint airflow version
     environment:
       <<: *airflow-common-env
       _AIRFLOW_DB_MIGRATE: 'true'
       _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-admin}
     user: "0:0"
     volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./etl_engine:/opt/airflow/etl_engine
+      - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+      - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
 
 volumes:
   postgres-db-volume:

@@ -1,8 +1,12 @@
 """Airflow DAG for metadata-driven ETL."""
 
+import sys
 import logging
 from datetime import datetime, timedelta
 from pathlib import Path
+
+# Add etl_engine to Python path
+sys.path.insert(0, '/opt/airflow') 
 
 from airflow import DAG
 from airflow.operators.python import PythonOperator
@@ -19,7 +23,7 @@ def run_etl_task():
     from etl_engine.processor import run_etl
     
     # Path to metadata file
-    metadata_path = Path("/usr/local/airflow/dags/config/metadata.json")
+    metadata_path = Path("/opt/airflow/dags/config/metadata.json")
     
     run_etl(str(metadata_path))
 
@@ -38,7 +42,7 @@ default_args = {
 with DAG(
     dag_id='technical_test_etl',
     default_args=default_args,
-    schedule_interval=None,  # Manual trigger only
+    schedule=None,  # Manual trigger only
     start_date=datetime(2025, 10, 1),
     catchup=False,
 ) as dag:
