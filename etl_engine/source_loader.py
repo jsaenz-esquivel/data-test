@@ -24,7 +24,6 @@ class SourceLoader:
         if not parent_dir.exists():
             raise SourceLoadError(f"Directory not found: {parent_dir}")
         
-        # Find all matching files
         json_files = list(parent_dir.glob(pattern))
         
         if not json_files:
@@ -37,9 +36,11 @@ class SourceLoader:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 
-                # Each file contains one JSON object
                 if isinstance(data, dict):
-                    records.append(data)
+                    records.append({
+                        'record': data,
+                        'source_file': file_path.name
+                    })
                 else:
                     raise SourceLoadError(
                         f"Invalid JSON in {file_path.name}: expected object, "

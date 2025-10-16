@@ -6,14 +6,12 @@ from datetime import datetime
 from .exceptions import ValidationError
 
 
-# Validation rules mapping
 VALIDATION_RULES = {
     "notNull": lambda value: value is not None,
     "notEmpty": lambda value: value not in [None, "", []],
 }
 
 
-# Field functions mapping
 FIELD_FUNCTIONS = {
     "current_timestamp": lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
 }
@@ -50,8 +48,9 @@ def validate_records(
                 errors[field_name] = field_errors
         
         if errors:
-            record["arraycoderrorbyfield"] = errors
-            invalid.append(record)  # ✅ CORREGIDO
+            record_copy = record.copy()
+            record_copy["arraycoderrorbyfield"] = errors
+            invalid.append(record_copy)
         else:
             valid.append(record)
     
