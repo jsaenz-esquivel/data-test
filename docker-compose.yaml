@@ -2,7 +2,9 @@ version: '3.8'
 
 x-airflow-common:
   &airflow-common
-  image: apache/airflow:2.10.3-python3.12
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -20,6 +22,7 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/etl_engine:/opt/airflow/etl_engine
     - ${AIRFLOW_PROJ_DIR:-.}/observability:/opt/airflow/observability
     - ${AIRFLOW_PROJ_DIR:-.}/data:/data
+    - ${AIRFLOW_PROJ_DIR:-.}/scripts:/opt/airflow/scripts
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on

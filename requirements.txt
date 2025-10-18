@@ -1,4 +1,7 @@
-pydantic==2.9.2
-psycopg2-binary==2.9.9
-prometheus-client==0.20.0
+pydantic==2.9.2          # Data validation and modeling
 Faker==30.8.2            # Generate realistic test data
+streamlit==1.39.0        # Web UI framework
+psycopg2-binary==2.9.9   # PostgreSQL connector
+pandas==2.2.3            # Data manipulation
+plotly==5.24.1           # Interactive charts
+requests==2.32.3         # HTTP client for Prometheus
