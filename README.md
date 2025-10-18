@@ -1,175 +1,169 @@
-# Metadata-Driven ETL Engine
+# ETL Observability Platform
 
-Enterprise-grade ETL framework with comprehensive observability, real-time monitoring, and complete data lineage tracking.
+Metadata-driven ETL framework with comprehensive observability and interactive monitoring dashboard.
 
----
-
-## Overview
-
-Flexible ETL engine that processes data based on JSON metadata configuration, providing:
-
-- **Metadata-driven execution** - Define sources, transformations, and outputs in JSON
-- **Complete data lineage** - Track every record from source to destination
-- **Real-time metrics** - Monitor execution performance with Prometheus
-- **Orchestration** - Schedule and manage workflows with Apache Airflow
-- **Field-level validation** - Extensible validation rules with detailed error tracking
-
----
-
-## Architecture
-```mermaid
-graph TB
-    subgraph "Orchestration"
-        AIRFLOW[Apache Airflow]
-    end
-
-    subgraph "ETL Engine"
-        META[Metadata Reader]
-        LOADER[Source Loader]
-        TRANSFORM[Transformations]
-        WRITER[Sink Writer]
-    end
-
-    subgraph "Observability"
-        POSTGRES[(PostgreSQL<br/>Lineage & Metrics)]
-        PUSHGW[Prometheus<br/>Pushgateway]
-        PROM[Prometheus<br/>Server]
-    end
-
-    subgraph "Data"
-        INPUT[Source Files]
-        OUTPUT_OK[Valid Records]
-        OUTPUT_KO[Invalid Records]
-    end
-
-    AIRFLOW --> META
-    META --> LOADER
-    LOADER --> INPUT
-    LOADER --> TRANSFORM
-    TRANSFORM --> WRITER
-    WRITER --> OUTPUT_OK
-    WRITER --> OUTPUT_KO
-    
-    TRANSFORM -.->|lineage| POSTGRES
-    TRANSFORM -.->|metrics| PUSHGW
-    PUSHGW --> PROM
-
-    style POSTGRES fill:#2196F3
-    style PROM fill:#FF6B6B
-    style AIRFLOW fill:#017CEE
-```
-
----
-
-## Data Flow
-```mermaid
-flowchart LR
-    SOURCE[Source<br/>JSON Files] --> LOAD[Load &<br/>Track Source]
-    LOAD --> VALIDATE{Validation<br/>Rules}
-    
-    VALIDATE -->|Pass| TRANSFORM[Apply<br/>Transformations]
-    VALIDATE -->|Fail| TRACK_ERR[Track<br/>Errors]
-    
-    TRANSFORM --> OUTPUT_VALID[Valid<br/>Output]
-    TRACK_ERR --> OUTPUT_INVALID[Invalid<br/>Output]
-    
-    LOAD -.->|record lineage| DB[(Database)]
-    VALIDATE -.->|validation errors| DB
-    TRANSFORM -.->|metrics| DB
-    TRANSFORM -.->|real-time| METRICS[Prometheus]
-
-    style VALIDATE fill:#FFC107
-    style DB fill:#2196F3
-    style METRICS fill:#FF6B6B
-```
-
----
-
-## Database Schema
-```mermaid
-erDiagram
-    executions ||--o{ transformation_metrics : has
-    executions ||--o{ record_lineage : contains
-    record_lineage ||--o{ validation_errors : has
-
-    executions {
-        uuid execution_id PK
-        varchar dataflow_name
-        varchar status
-        timestamptz started_at
-        timestamptz finished_at
-        numeric duration_seconds
-        int records_processed
-    }
-
-    transformation_metrics {
-        serial metric_id PK
-        uuid execution_id FK
-        varchar transformation_name
-        varchar transformation_type
-        int records_in
-        int records_out
-        numeric duration_ms
-    }
-
-    record_lineage {
-        uuid lineage_id PK
-        uuid execution_id FK
-        varchar record_id
-        varchar source_file
-        text transformation_path
-        varchar output_path
-        boolean validation_passed
-    }
-
-    validation_errors {
-        serial error_id PK
-        uuid lineage_id FK
-        varchar field_name
-        varchar validation_rule
-        jsonb error_details
-    }
-```
+**Stack:** Python 3.12 | Apache Airflow | PostgreSQL | Prometheus | Grafana | Streamlit
 
 ---
 
 ## Quick Start
 
 ### Prerequisites
-
 - Docker & Docker Compose
 - 8GB RAM minimum
+- Ports: 5432, 8090, 8501, 3000, 9090, 9091, 8080, 9100
 
-### Installation
+### Setup
+
 ```bash
-# Clone repository
 git clone <repository-url>
 cd sdg-etl-project
 
-# Set permissions
+cp .env.example .env
 chmod -R 777 data/output/
 
-# Start services
 docker-compose up -d
-
-# Wait for services to initialize (~30 seconds)
-docker-compose ps
 ```
 
-### Access Points
+Wait 60 seconds for initialization.
+
+### Access
 
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Airflow | http://localhost:8090 | admin / admin |
+| **Streamlit** | http://localhost:8501 | - |
+| Airflow | http://localhost:8090 | admin/admin |
+| Grafana | http://localhost:3000 | admin/admin |
 | Prometheus | http://localhost:9090 | - |
-| Pushgateway | http://localhost:9091 | - |
 
-### Execute ETL
+---
 
-1. Open Airflow UI at `http://localhost:8090`
+## Architecture
+
+```mermaid
+graph TB
+    subgraph "UI Layer"
+        A[Streamlit Dashboard :8501]
+        A1[Data Lineage Explorer]
+        A2[Monitoring Dashboards]
+        A --> A1
+        A --> A2
+    end
+
+    subgraph "Orchestration"
+        B[Apache Airflow :8090]
+        B1[DAG: technical_test_etl<br/>Every 15 minutes]
+        B --> B1
+    end
+
+    subgraph "ETL Engine"
+        C[ETL Processor]
+        C1[Source Loader]
+        C2[Validator]
+        C3[Transformer]
+        C4[Sink Writer]
+        C1 --> C2
+        C2 --> C3
+        C3 --> C4
+    end
+
+    subgraph "Storage"
+        D[PostgreSQL :5432]
+        D1[(executions)]
+        D2[(record_lineage)]
+        D3[(validation_errors)]
+        D4[(transformation_metrics)]
+        D --> D1
+        D --> D2
+        D --> D3
+        D --> D4
+    end
+
+    subgraph "Metrics"
+        E[Prometheus :9090]
+        E1[Pushgateway :9091]
+        E2[cAdvisor :8080]
+        E3[Node Exporter :9100]
+        E --> E1
+        E --> E2
+        E --> E3
+    end
+
+    subgraph "Visualization"
+        F[Grafana :3000]
+        F1[ETL Executions]
+        F2[Validation Errors]
+        F3[Prometheus Metrics]
+        F4[Container Metrics]
+        F5[Host Metrics]
+        F --> F1
+        F --> F2
+        F --> F3
+        F --> F4
+        F --> F5
+    end
+
+    B1 --> C
+    C --> D
+    C --> E1
+    A1 --> D
+    A2 --> F
+    E2 -.->|scrape| E
+    E3 -.->|scrape| E
+    F --> D
+    F --> E
+```
+
+---
+
+## Data Flow
+
+```mermaid
+graph LR
+    A[Input JSON] --> B{Validation}
+    B -->|Valid| C[Transformations]
+    B -->|Invalid| D[Discards]
+    C --> E[Output Valid]
+    D --> F[Output Invalid]
+    
+    B -.->|track| G[(PostgreSQL)]
+    C -.->|track| G
+    B -.->|metrics| H[Prometheus]
+    C -.->|metrics| H
+    
+    style B fill:#f9f,stroke:#333
+    style G fill:#bbf,stroke:#333
+    style H fill:#bfb,stroke:#333
+```
+
+---
+
+## Usage
+
+### 1. Execute ETL
+
+**Via Airflow:**
+1. Open http://localhost:8090
 2. Enable DAG: `technical_test_etl`
 3. Trigger execution
-4. Monitor progress in real-time
+
+ETL runs automatically every 15 minutes, generating 200 new records per execution.
+
+### 2. Track Data Lineage
+
+**Streamlit → Data Lineage tab:**
+- Search by record ID or name
+- View complete journey: source → validation → transformation → output
+- Inspect validation errors and applied transformations
+
+### 3. Monitor System
+
+**Streamlit → Monitoring tab:**
+- **ETL Executions** - Success rates, performance trends
+- **Validation Errors** - Error analysis by field and type
+- **Prometheus** - Real-time ETL metrics
+- **Containers** - Docker resource usage (cAdvisor)
+- **Host** - Server-level metrics (Node Exporter)
 
 ---
 
@@ -177,48 +171,74 @@ docker-compose ps
 
 ### Metadata Structure
 
-ETL behavior is defined in `config/metadata.json`:
+ETL pipelines are defined declaratively in `config/metadata.json`:
+
 ```json
 {
   "dataflows": [{
     "name": "dataflow-name",
     "sources": [{
-      "name": "source-name",
-      "path": "/data/input/path/*",
+      "name": "input_data",
+      "path": "/data/input/events/person/*",
       "format": "JSON"
     }],
-    "transformations": [{
-      "name": "transformation-name",
-      "type": "validate_fields | add_fields",
-      "params": { }
-    }],
-    "sinks": [{
-      "input": "dataset-name",
-      "name": "sink-name",
-      "paths": ["/data/output/path"],
-      "format": "JSON",
-      "saveMode": "OVERWRITE | APPEND"
-    }]
+    "transformations": [
+      {
+        "name": "validation",
+        "type": "validate_fields",
+        "params": {
+          "input": "input_data",
+          "validations": [
+            {"field": "email", "validations": ["notEmpty"]},
+            {"field": "age", "validations": ["notNull"]}
+          ]
+        }
+      },
+      {
+        "name": "add_metadata",
+        "type": "add_fields",
+        "params": {
+          "input": "validation_ok",
+          "addFields": [
+            {"name": "processed_at", "function": "current_timestamp"}
+          ]
+        }
+      }
+    ],
+    "sinks": [
+      {
+        "input": "add_metadata",
+        "name": "valid-output",
+        "paths": ["/data/output/events/person"],
+        "format": "JSON",
+        "saveMode": "OVERWRITE"
+      },
+      {
+        "input": "validation_ko",
+        "name": "invalid-output",
+        "paths": ["/data/output/discards/person"],
+        "format": "JSON",
+        "saveMode": "APPEND"
+      }
+    ]
   }]
 }
 ```
 
-### Validation Rules
+### Available Rules & Functions
 
-| Rule | Description |
-|------|-------------|
-| `notNull` | Field must have a value (not null) |
-| `notEmpty` | Field must not be empty string or empty array |
+**Validation:**
+- `notNull` - Field must have a value
+- `notEmpty` - Field cannot be empty string or array
 
-### Field Functions
+**Functions:**
+- `current_timestamp` - Current date/time
+- `uuid` - Unique identifier
 
-| Function | Description |
-|----------|-------------|
-| `current_timestamp` | Adds current timestamp in `YYYY-MM-DD HH:MM:SS` format |
+### Extending
 
-### Extending Validation Rules
+Add custom validation in `etl_engine/transformations.py`:
 
-Add new rules in `etl_engine/transformations.py`:
 ```python
 VALIDATION_RULES = {
     "notNull": lambda value: value is not None,
@@ -227,64 +247,105 @@ VALIDATION_RULES = {
 }
 ```
 
-### Extending Field Functions
-
-Add new functions in `etl_engine/transformations.py`:
-```python
-FIELD_FUNCTIONS = {
-    "current_timestamp": lambda: datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    "uuid": lambda: str(uuid.uuid4()),
-}
-```
-
 ---
 
 ## Project Structure
+
 ```
 sdg-etl-project/
 ├── etl_engine/              # Core ETL framework
 │   ├── processor.py         # Main orchestrator
+│   ├── transformations.py   # Validation & transform
 │   ├── source_loader.py     # Data ingestion
-│   ├── transformations.py   # Validation & transformation logic
 │   ├── sink_writer.py       # Output writer
-│   ├── metadata_reader.py   # Configuration parser
-│   ├── models.py            # Data models (Pydantic)
-│   └── exceptions.py        # Custom exceptions
+│   └── models.py            # Pydantic schemas
 ├── observability/
-│   ├── db/
-│   │   ├── connection.py    # Connection pool management
-│   │   ├── queries.py       # Database operations
-│   │   └── schema.sql       # Schema definitions
-│   ├── lineage/
-│   │   └── tracker.py       # Record lineage tracking
-│   └── metrics/
-│       ├── collectors.py    # Prometheus metrics
-│       └── exporter.py      # Pushgateway integration
+│   ├── db/                  # PostgreSQL operations
+│   ├── lineage/             # Record tracking
+│   └── metrics/             # Prometheus collectors
 ├── dags/
 │   └── etl_dag.py          # Airflow DAG
+├── streamlit_tabs/
+│   ├── tab1_lineage.py     # Lineage UI
+│   └── tab2_monitoring.py  # Monitoring UI
+├── grafana/provisioning/
+│   ├── datasources/        # PostgreSQL + Prometheus
+│   └── dashboards/         # 5 pre-configured dashboards
 ├── config/
 │   └── metadata.json       # ETL configuration
 ├── data/
 │   ├── input/              # Source data
-│   └── output/             # Processed data
-├── docker-compose.yaml     # Infrastructure definition
-├── prometheus.yml          # Prometheus configuration
-└── requirements.txt        # Python dependencies
+│   └── output/             # Valid + invalid records
+├── streamlit_app.py        # Main UI
+├── streamlit_db.py         # Database queries
+├── docker-compose.yaml     # Infrastructure
+└── requirements.txt
 ```
 
 ---
 
-## Monitoring
+## Observability Schema
 
-### Prometheus Metrics
+```mermaid
+erDiagram
+    EXECUTIONS ||--o{ RECORD_LINEAGE : tracks
+    EXECUTIONS ||--o{ TRANSFORMATION_METRICS : measures
+    RECORD_LINEAGE ||--o{ VALIDATION_ERRORS : captures
+    
+    EXECUTIONS {
+        uuid execution_id PK
+        varchar dataflow_name
+        varchar status
+        timestamp started_at
+        timestamp finished_at
+        int records_processed
+        numeric duration_seconds
+    }
+    
+    RECORD_LINEAGE {
+        uuid lineage_id PK
+        uuid execution_id FK
+        varchar record_id
+        varchar source_file
+        text transformation_path
+        varchar output_path
+        boolean validation_passed
+        timestamp processed_at
+    }
+    
+    VALIDATION_ERRORS {
+        serial error_id PK
+        uuid lineage_id FK
+        varchar field_name
+        varchar validation_rule
+        jsonb error_details
+        timestamp detected_at
+    }
+    
+    TRANSFORMATION_METRICS {
+        serial metric_id PK
+        uuid execution_id FK
+        varchar transformation_name
+        varchar transformation_type
+        int records_in
+        int records_out
+        numeric duration_ms
+        timestamp executed_at
+    }
+```
+
+---
+
+## Prometheus Metrics
+
 ```promql
-# Records processed
-etl_records_processed_total
+# Records processed by dataflow
+etl_records_processed_total{dataflow="prueba-acceso"}
 
 # Success rate
 etl_records_valid_total / etl_records_processed_total
 
-# Execution duration (p95)
+# P95 execution duration
 histogram_quantile(0.95, rate(etl_execution_duration_seconds_bucket[5m]))
 
 # Transformation performance
@@ -292,66 +353,70 @@ rate(etl_transformation_duration_seconds_sum[5m]) /
 rate(etl_transformation_duration_seconds_count[5m])
 ```
 
-### Database Queries
-```sql
--- Recent executions
-SELECT execution_id, dataflow_name, status, duration_seconds, records_processed
-FROM observability.executions
-ORDER BY started_at DESC
-LIMIT 10;
+---
 
--- Validation errors summary
-SELECT field_name, validation_rule, COUNT(*) as error_count
-FROM observability.validation_errors
-GROUP BY field_name, validation_rule
-ORDER BY error_count DESC;
+## Troubleshooting
 
--- Record lineage lookup
-SELECT * FROM observability.record_lineage
-WHERE record_id = 'specific-record-id';
+### Services not starting
+```bash
+docker-compose logs -f [service-name]
+docker-compose restart [service-name]
+```
+
+### Empty dashboards
+- Wait 2-3 minutes for metric accumulation
+- Trigger DAG manually: Airflow UI → `technical_test_etl` → Play button
+- Verify Prometheus targets: http://localhost:9090/targets (all should be UP)
+
+### Connection errors
+```bash
+# Test PostgreSQL
+docker exec postgres psql -U airflow -d airflow -c "SELECT 1;"
+
+# Check service status
+docker-compose ps
+```
+
+### Port conflicts
+```bash
+# Find process using port
+sudo lsof -i :8501
+
+# Stop and restart
+docker-compose down
+docker-compose up -d
 ```
 
 ---
 
-## Technology Stack
+## Local Development
 
-| Component | Technology | Version |
-|-----------|-----------|---------|
-| Runtime | Python | 3.12 |
-| Orchestration | Apache Airflow | 2.10.3 |
-| Database | PostgreSQL | 15 |
-| Metrics | Prometheus | latest |
-| Metrics Gateway | Pushgateway | latest |
-| Containerization | Docker Compose | 3.8 |
-| Data Validation | Pydantic | 2.9.2 |
-| Database Driver | psycopg2-binary | 2.9.9 |
-| Metrics Client | prometheus-client | 0.20.0 |
+```bash
+# Activate virtual environment
+source .venv/bin/activate
 
----
+# Run ETL locally
+python scripts/run_etl.py
 
-## Design Principles
-
-### Functional Architecture
-Stateless transformations enable easy testing and composition.
-
-### Metadata-Driven
-Single configuration file controls all ETL behavior without code changes.
-
-### Observability-First
-Every record tracked, every transformation measured, every error captured.
-
-### Extensibility
-Add validation rules and field functions without modifying core engine.
-
-### Separation of Concerns
-Clear boundaries between ingestion, transformation, output, and observability.
+# Run Streamlit locally
+streamlit run streamlit_app.py
+```
 
 ---
 
-## Performance
+## Production Considerations
 
-- **Connection Pooling**: 2-10 reusable database connections
-- **Batch Processing**: Efficient handling of large datasets
-- **Async Metrics**: Non-blocking metrics collection
-- **Optimized I/O**: Minimal file operations
+- Change all default passwords in `.env`
+- Enable SSL/TLS for PostgreSQL and Grafana
+- Configure proper authentication (LDAP/OAuth)
+- Use CeleryExecutor in Airflow for horizontal scaling
+- Set up automated database backups
+- Configure Grafana alerting rules
+- Implement log aggregation (ELK/Loki)
+- Add API rate limiting
 
+---
+
+**Technical Assessment - SDG Group**
+
+*Senior Data Engineer Position | October 2025*

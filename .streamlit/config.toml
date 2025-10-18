@@ -1,10 +1,20 @@
 [theme]
-primaryColor = "#5794F2"
-backgroundColor = "#0B0C0E"
-secondaryBackgroundColor = "#1F1F1F"
-textColor = "#FFFFFF"
+primaryColor = "#1E88E5"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#262730"
+textColor = "#FAFAFA"
 font = "sans serif"
 
 [server]
-headless = true
 port = 8501
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+gatherUsageStats = false
+serverAddress = "localhost"
+
+[runner]
+magicEnabled = true
+fastReruns = true

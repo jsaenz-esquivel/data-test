@@ -35,3 +35,4 @@ data/output/**/*.json
 # Docker volumes
 grafana-storage/
 prometheus-data
+.env.local
